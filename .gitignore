@@ -1,0 +1,28 @@
+# Build output
+bin/
+obj/
+out/
+
+# User-specific files
+*.user
+*.suo
+.vs/
+
+# Environment / secrets
+appsettings.Development.json
+.env
+*.env
+
+# Contracts PDFs (dados sensíveis)
+contracts/
+*.pdf
+
+# NuGet
+*.nupkg
+packages/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
