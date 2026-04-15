@@ -1,25 +1,22 @@
+using Microsoft.Extensions.Logging;
 using RagFinanceiro.Domain.Entities;
 using RagFinanceiro.Domain.Repositories;
-using RagFinanceiro.Domain.Services;
 
 namespace RagFinanceiro.Application.UseCases.IngestContract;
 
-public class IngestContractHandler
+public class IngestContractHandler(
+    IContractRepository repository,
+    ILogger<IngestContractHandler> logger)
 {
-    private readonly IContractRepository _repository;
-    private readonly IPdfReaderService _pdfReader;
-
-    public IngestContractHandler(IContractRepository repository, IPdfReaderService pdfReader)
-    {
-        _repository = repository;
-        _pdfReader = pdfReader;
-    }
-
     public async Task<IngestContractResult> HandleAsync(
         IngestContractCommand command,
         string indexedBy,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation(
+            "Iniciando ingestao. ContractId: {ContractId} | TenantId: {TenantId}",
+            command.ContractId, command.TenantId);
+
         var contract = Contract.Create(
             command.ContractId,
             command.TenantId,
@@ -28,7 +25,11 @@ public class IngestContractHandler
             command.ClientName
         );
 
-        await _repository.IngestAsync(command.PdfStream, contract, cancellationToken);
+        await repository.IngestAsync(command.PdfStream, contract, cancellationToken);
+
+        logger.LogInformation(
+            "Ingestao concluida. ContractId: {ContractId} | Chunks: {ChunkCount} | IndexadoPor: {IndexedBy}",
+            contract.ContractId.Value, contract.ChunkCount, indexedBy);
 
         return new IngestContractResult(
             ChunksIndexed: contract.ChunkCount,

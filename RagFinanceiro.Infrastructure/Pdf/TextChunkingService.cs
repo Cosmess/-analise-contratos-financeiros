@@ -7,6 +7,18 @@ public class TextChunkingService : IChunkingService
 {
     public IReadOnlyList<string> Split(string text, int chunkSize, int overlap)
     {
+        if (string.IsNullOrWhiteSpace(text))
+            return Array.Empty<string>();
+
+        if (chunkSize <= 0)
+            throw new ArgumentOutOfRangeException(nameof(chunkSize), "ChunkSize deve ser maior que zero.");
+
+        if (overlap < 0)
+            throw new ArgumentOutOfRangeException(nameof(overlap), "Overlap nao pode ser negativo.");
+
+        if (overlap >= chunkSize)
+            throw new ArgumentException("Overlap deve ser menor que chunkSize.", nameof(overlap));
+
         var chunks = new List<string>();
         var paragraphs = text.Split("\n\n", StringSplitOptions.RemoveEmptyEntries);
         var buffer = new StringBuilder();
