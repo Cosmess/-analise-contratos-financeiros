@@ -280,3 +280,48 @@ curl -X DELETE https://localhost:5001/api/contracts/CNT-001 \
 | Collection por tenant no pgvector | Isolamento de dados em ambiente SaaS multitenancy |
 | Overlap de 120 chars no chunking | Evita que cláusulas sejam cortadas no meio entre chunks |
 | Source documents na resposta | Auditabilidade — rastreia qual trecho do contrato embasou cada resposta |
+
+---
+
+## Observabilidade e Tratamento de Erros
+
+A aplicacao possui logging estruturado e tratamento centralizado de excecoes para facilitar diagnostico em desenvolvimento e producao.
+
+### Middleware global
+
+O `GlobalExceptionMiddleware` e registrado no pipeline HTTP em `Program.cs` e padroniza respostas de erro em `application/problem+json`.
+
+Tratamentos cobertos:
+
+- `OperationCanceledException` quando a requisicao e cancelada pelo cliente, retornando status `499`
+- `UnauthorizedAccessException`, retornando `401`
+- `ArgumentException`, retornando `400`
+- `InvalidOperationException`, retornando `500` com mensagem generica para o cliente
+- `Exception`, retornando `500` para falhas inesperadas
+
+Todas as respostas de erro incluem `traceId` para correlacao com os logs da API.
+
+### Validacoes de entrada
+
+O `ContractsController` valida os dados obrigatorios antes de executar os casos de uso:
+
+- Upload exige arquivo PDF nao vazio, `contractId`, `contractNumber`, `clientName` e `clientCpf`
+- Consulta exige `question` e `clientCpf`
+- Exclusao exige `contractId`
+- Claims obrigatorias do JWT, como `tenant_id` e identificador do usuario, sao verificadas antes do uso
+
+O `tenant_id` continua sendo obtido exclusivamente do JWT, nunca do corpo da requisicao.
+
+### Logs por camada
+
+Os logs foram distribuidos nos pontos com maior risco operacional:
+
+- API: inicio e conclusao de upload, consulta e exclusao
+- Application: inicio e fim dos handlers de ingestao, consulta e exclusao
+- PDF: leitura, quantidade de paginas uteis, tamanho do texto extraido e quantidade de chunks
+- Chunking: validacao defensiva de `chunkSize` e `overlap`
+- Repositorio vetorial: ingestao, busca, exclusao, cancelamentos e falhas
+- `ContractMemoryStore`: salvamento, busca e remocao de chunks no pgvector/Semantic Kernel
+- LLM: envio de pergunta, tamanho do contexto, tamanho da resposta e falhas da chamada
+
+Para reduzir exposicao de dados sensiveis, os logs evitam registrar pergunta completa, texto de contrato e CPF quando nao necessario. Em geral, registram ids, contagens, tamanhos e `tenantId`.
