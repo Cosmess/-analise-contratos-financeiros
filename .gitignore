@@ -2,7 +2,7 @@
 bin/
 obj/
 out/
-
+.idea/
 # User-specific files
 *.user
 *.suo
