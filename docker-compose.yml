@@ -1,7 +1,7 @@
-version: "3.9"
 services:
   postgres:
     image: pgvector/pgvector:pg16
+    container_name: rag_financeiro_postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -10,6 +10,48 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d contratos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-init:
+    image: pgvector/pgvector:pg16
+    container_name: rag_financeiro_postgres_init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: postgres
+    command: >
+      sh -c "psql -h postgres -U postgres -d contratos
+      -c 'CREATE EXTENSION IF NOT EXISTS vector;'"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag_financeiro_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=contratos;Username=postgres;Password=postgres
+      OpenAI__Key: ${OPENAI_API_KEY:?Defina OPENAI_API_KEY no ambiente ou em um arquivo .env}
+      OpenAI__ChatModel: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
+      OpenAI__EmbeddingModel: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      Jwt__Key: ${JWT_KEY:-dev-secret-key-minimo-32-caracteres}
+      Jwt__Issuer: ${JWT_ISSUER:-contract-rag-api}
+      Jwt__Audience: ${JWT_AUDIENCE:-contract-rag-clients}
+      Jwt__ExpiresMinutes: ${JWT_EXPIRES_MINUTES:-30}
+    ports:
+      - "5001:8080"
 
 volumes:
   pgdata:

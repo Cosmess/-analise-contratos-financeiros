@@ -226,26 +226,38 @@ Edite `RagFinanceiro.Api/appsettings.json`:
 }
 ```
 
-### 2. Subir o banco de dados
+### 2. Subir com Docker Compose
+
+Crie um arquivo `.env` a partir de `.env.example` e preencha `OPENAI_API_KEY`.
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
-### 3. Restaurar dependências e executar
+Esse comando sobe PostgreSQL com pgvector, garante a extensao `vector` e executa a API em `http://localhost:5001`.
+
+### 3. Rodar localmente sem container da API
+
+Para rodar a API fora do container, suba apenas o banco:
+
+```bash
+docker compose up -d postgres postgres-init
+```
+
+Depois restaure as dependencias e execute:
 
 ```bash
 dotnet restore
 dotnet run --project RagFinanceiro.Api
 ```
 
-A API estará disponível em `https://localhost:5001` e a documentação Swagger em `https://localhost:5001/swagger`.
+A URL local segue o perfil de `launchSettings.json`, normalmente `http://localhost:5133/swagger`.
 
 ### 4. Exemplos de uso
 
 **Upload de contrato:**
 ```bash
-curl -X POST https://localhost:5001/api/contracts/upload \
+curl -X POST http://localhost:5001/api/contracts/upload \
   -H "Authorization: Bearer SEU_TOKEN_JWT" \
   -F "file=@contrato.pdf" \
   -F "contractId=CNT-001" \
@@ -256,7 +268,7 @@ curl -X POST https://localhost:5001/api/contracts/upload \
 
 **Consulta ao contrato:**
 ```bash
-curl -X POST https://localhost:5001/api/contracts/query \
+curl -X POST http://localhost:5001/api/contracts/query \
   -H "Authorization: Bearer SEU_TOKEN_JWT" \
   -H "Content-Type: application/json" \
   -d '{"question": "Qual o prazo para renegociação?", "clientCpf": "12345678900"}'
@@ -264,7 +276,7 @@ curl -X POST https://localhost:5001/api/contracts/query \
 
 **Remover contrato:**
 ```bash
-curl -X DELETE https://localhost:5001/api/contracts/CNT-001 \
+curl -X DELETE http://localhost:5001/api/contracts/CNT-001 \
   -H "Authorization: Bearer SEU_TOKEN_JWT"
 ```
 
